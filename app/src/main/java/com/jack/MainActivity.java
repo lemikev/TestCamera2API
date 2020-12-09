@@ -17,6 +17,7 @@ import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.util.Size;
 import android.view.Surface;
@@ -24,6 +25,8 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.Toast;
+
+import java.io.IOException;
 import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
@@ -34,39 +37,53 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton stopRecordImageButton;
 
     private String cameraId;
-    protected CameraDevice cameraDevice = null;
-    protected CameraCaptureSession cameraCaptureSessions;
-    protected CaptureRequest.Builder captureRequestBuilder;
+    private CameraDevice cameraDevice = null;
+    private CameraCaptureSession cameraCaptureSessions;
+    private CaptureRequest.Builder captureRequestBuilder;
     private Size imageDimension;
+    private MediaRecorder mediaRecorder;
+    protected Context mainActivity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mainActivity = this;
 
         // TextureView
         textureView = (TextureView) findViewById(R.id.texture);
         textureView.setSurfaceTextureListener(textureListener);
 
+        // MediaRecorder
+        mediaRecorder = new MediaRecorder();
+
         // Start record ImageButton
         startRecordImageButton = (ImageButton) findViewById(R.id.startRecordImageButton);
         startRecordImageButton.setEnabled(true);
-        startRecordImageButton.setColorFilter(ContextCompat.getColor(this, R.color.colorControls));
+        startRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControls));
 
         startRecordImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-               // TODO
+                startRecord();
+                startRecordImageButton.setEnabled(false);
+                startRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControlsDisable));
+                stopRecordImageButton.setEnabled(true);
+                stopRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControls));
             }
         });
 
         // Stop record ImageButton
         stopRecordImageButton = (ImageButton) findViewById(R.id.stopRecordImageButton);
         stopRecordImageButton.setEnabled(false);
-        stopRecordImageButton.setColorFilter(ContextCompat.getColor(this, R.color.colorControlsDisable));
+        stopRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControlsDisable));
 
         stopRecordImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                // TODO
+                stopRecord();
+                startRecordImageButton.setEnabled(true);
+                startRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControls));
+                stopRecordImageButton.setEnabled(false);
+                stopRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControlsDisable));
             }
         });
     }
@@ -207,5 +224,57 @@ public class MainActivity extends AppCompatActivity {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+    }
+
+    //----------------------------------------------------------------------
+    // Enregistrement video
+    private void setUpMediaRecorder() throws IOException {
+        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mediaRecorder.setVideoEncodingBitRate(1000000);
+        mediaRecorder.setVideoFrameRate(30);
+        mediaRecorder.setVideoSize(imageDimension.getWidth(), imageDimension.getHeight());
+        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        mediaRecorder.prepare();
+    }
+
+    protected void startRecord() {
+        try {
+            setUpMediaRecorder();
+            SurfaceTexture texture = textureView.getSurfaceTexture();
+            texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
+            Surface previewSurface = new Surface(texture);
+
+            Surface enregistreurDeSurface = mediaRecorder.getSurface();
+            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+            captureRequestBuilder.addTarget(previewSurface);
+            captureRequestBuilder.addTarget(enregistreurDeSurface);
+
+            cameraDevice.createCaptureSession(Arrays.asList(previewSurface, enregistreurDeSurface),
+                    new CameraCaptureSession.StateCallback() {
+                        @Override
+                        public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                            try {
+                                cameraCaptureSession.setRepeatingRequest(
+                                        captureRequestBuilder.build(), null, null
+                                );
+                            } catch (CameraAccessException e) {
+                                e.printStackTrace();
+                            }
+                        }
+
+                        @Override
+                        public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+
+                        }
+                    }, null);
+
+        } catch (IOException | CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected void stopRecord() {
+
     }
 }
