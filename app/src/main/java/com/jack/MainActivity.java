@@ -16,8 +16,6 @@ import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
@@ -29,12 +27,10 @@ public class MainActivity extends AppCompatActivity {
 
     private TextureView textureView;
     private String cameraId;
-    protected CameraDevice cameraDevice;
+    protected CameraDevice cameraDevice = null;
     protected CameraCaptureSession cameraCaptureSessions;
     protected CaptureRequest.Builder captureRequestBuilder;
     private Size imageDimension;
-    private Handler mBackgroundHandler;
-    private HandlerThread mBackgroundThread;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +40,40 @@ public class MainActivity extends AppCompatActivity {
         textureView.setSurfaceTextureListener(textureListener);
     }
 
+    // Callback appelé lors de la remise en avant de cette activité
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (textureView.isAvailable()) {
+            openCamera();
+        } else {
+            textureView.setSurfaceTextureListener(textureListener);
+        }
+    }
+
+    // Callback appelé lors de la mise en pause de cette activité
+    @Override
+    protected void onPause() {
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
+        super.onPause();
+    }
+
+    // Callback appelé suite a une demande d'accès à la vidéo
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == REQUEST_CAMERA_PERMISSION) {
+            if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
+                Toast.makeText(MainActivity.this, "Désolé, vous ne pouvez utuliser cette application sans donner les droits access.", Toast.LENGTH_LONG).show();
+                finish();
+            }
+        }
+    }
+
+    // Callback utulisé pour attendre l'activation du TextureView avant ouvrir la caméra
     TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
@@ -64,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    // Callback utulisé pour attendre l'ouvreture la caméra avant d'initialisé le préview
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice camera) {
@@ -83,113 +114,67 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    protected void startBackgroundThread() {
-        mBackgroundThread = new HandlerThread("Camera Background");
-        mBackgroundThread.start();
-        mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
-    }
-
-    protected void stopBackgroundThread() {
-        mBackgroundThread.quitSafely();
-        try {
-            mBackgroundThread.join();
-            mBackgroundThread = null;
-            mBackgroundHandler = null;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    protected void createCameraPreview() {
-        try {
-            SurfaceTexture texture = textureView.getSurfaceTexture();
-            texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
-            Surface surface = new Surface(texture);
-            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            captureRequestBuilder.addTarget(surface);
-            cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback() {
-                @Override
-                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    //The camera is already closed
-                    if (null == cameraDevice) {
-                        return;
-                    }
-                    // When the session is ready, we start displaying the preview.
-                    cameraCaptureSessions = cameraCaptureSession;
-                    updatePreview();
-                }
-
-                @Override
-                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    Toast.makeText(MainActivity.this, "Configuration change", Toast.LENGTH_SHORT).show();
-                }
-            }, null);
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-    }
-
+    // Ouverture de la caméra
     private void openCamera() {
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
 
         try {
+            // Permet d'obtenir le ID de la caméra par defaut
             cameraId = manager.getCameraIdList()[0];
+
+            // Permet d'obtenir la dimension de l'image par défault de cette
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             imageDimension = map.getOutputSizes(SurfaceTexture.class)[0];
 
-            // Add permission for camera and let user grant the permission
+            // Demande d'accès a la caméra si ce n'est pas déja fait
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA_PERMISSION);
                 return;
             }
 
+            // Open the camera
             manager.openCamera(cameraId, stateCallback, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
-    protected void updatePreview() {
-        captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+    // Configuration du préview dans le TextureView
+    protected void createCameraPreview() {
         try {
-            cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
+            // Configuration de la dimension de l'image selon la dimension de la caméra
+            SurfaceTexture texture = textureView.getSurfaceTexture();
+            texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
+            Surface surface = new Surface(texture);
+
+            // Configuration d'un CaptureRequest.Builder
+            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            captureRequestBuilder.addTarget(surface);
+
+            cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback() {
+                @Override
+                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                    if (null == cameraDevice)
+                        return;
+
+                    // Configuration d'une CameraCaptureSession
+                    cameraCaptureSessions = cameraCaptureSession;
+                    captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+                    try {
+                        cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+                    } catch (CameraAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+                    Toast.makeText(MainActivity.this, "ERREUR, imposible de démaré le vidéo", Toast.LENGTH_SHORT).show();
+                }
+            }, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-    }
-
-    private void closeCamera() {
-        if (null != cameraDevice) {
-            cameraDevice.close();
-            cameraDevice = null;
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_CAMERA_PERMISSION) {
-            if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
-                Toast.makeText(MainActivity.this, "Sorry!!!, you can't use this app without granting permission", Toast.LENGTH_LONG).show();
-                finish();
-            }
-        }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        startBackgroundThread();
-        if (textureView.isAvailable()) {
-            openCamera();
-        } else {
-            textureView.setSurfaceTextureListener(textureListener);
-        }
-    }
-
-    @Override
-    protected void onPause() {
-        stopBackgroundThread();
-        super.onPause();
     }
 }
