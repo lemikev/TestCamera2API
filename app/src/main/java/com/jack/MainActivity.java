@@ -3,6 +3,8 @@ package com.jack;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -19,6 +21,8 @@ import android.os.Bundle;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
+import android.view.View;
+import android.widget.ImageButton;
 import android.widget.Toast;
 import java.util.Arrays;
 
@@ -26,6 +30,9 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 200;
 
     private TextureView textureView;
+    private ImageButton startRecordImageButton;
+    private ImageButton stopRecordImageButton;
+
     private String cameraId;
     protected CameraDevice cameraDevice = null;
     protected CameraCaptureSession cameraCaptureSessions;
@@ -36,8 +43,32 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // TextureView
         textureView = (TextureView) findViewById(R.id.texture);
         textureView.setSurfaceTextureListener(textureListener);
+
+        // Start record ImageButton
+        startRecordImageButton = (ImageButton) findViewById(R.id.startRecordImageButton);
+        startRecordImageButton.setEnabled(true);
+        startRecordImageButton.setColorFilter(ContextCompat.getColor(this, R.color.colorControls));
+
+        startRecordImageButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+               // TODO
+            }
+        });
+
+        // Stop record ImageButton
+        stopRecordImageButton = (ImageButton) findViewById(R.id.stopRecordImageButton);
+        stopRecordImageButton.setEnabled(false);
+        stopRecordImageButton.setColorFilter(ContextCompat.getColor(this, R.color.colorControlsDisable));
+
+        stopRecordImageButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // TODO
+            }
+        });
     }
 
     // Callback appelé lors de la remise en avant de cette activité

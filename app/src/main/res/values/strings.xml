@@ -1,4 +1,3 @@
 <resources>
-    <string name="app_name">Android Camera API 2</string>
-    <string name="take_picture">Take picture</string>
+    <string name="app_name">Project Camera 2 API</string>
 </resources>
