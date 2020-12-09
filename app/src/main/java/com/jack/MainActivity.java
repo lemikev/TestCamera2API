@@ -33,8 +33,9 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 200;
 
     private TextureView textureView;
-    private ImageButton startRecordImageButton;
+    private ImageButton recordImageButton;
     private ImageButton stopRecordImageButton;
+    private boolean recording = false;
 
     private String cameraId;
     private CameraDevice cameraDevice = null;
@@ -58,34 +59,23 @@ public class MainActivity extends AppCompatActivity {
         mediaRecorder = new MediaRecorder();
 
         // Start record ImageButton
-        startRecordImageButton = (ImageButton) findViewById(R.id.startRecordImageButton);
-        startRecordImageButton.setEnabled(true);
-        startRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControls));
+        recordImageButton = (ImageButton) findViewById(R.id.recordImageButton);
 
-        startRecordImageButton.setOnClickListener(new View.OnClickListener() {
+        recordImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                startRecord();
-                startRecordImageButton.setEnabled(false);
-                startRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControlsDisable));
-                stopRecordImageButton.setEnabled(true);
-                stopRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControls));
+                if (recording) {
+                    recording = false;
+                    recordImageButton.setImageResource(R.drawable.icon_video_record);
+                    stopRecord();
+                }
+                else {
+                    recording = true;
+                    recordImageButton.setImageResource(R.drawable.icon_video_stop);
+                    startRecord();
+                }
             }
         });
 
-        // Stop record ImageButton
-        stopRecordImageButton = (ImageButton) findViewById(R.id.stopRecordImageButton);
-        stopRecordImageButton.setEnabled(false);
-        stopRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControlsDisable));
-
-        stopRecordImageButton.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                stopRecord();
-                startRecordImageButton.setEnabled(true);
-                startRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControls));
-                stopRecordImageButton.setEnabled(false);
-                stopRecordImageButton.setColorFilter(ContextCompat.getColor(mainActivity, R.color.colorControlsDisable));
-            }
-        });
     }
 
     // Callback appelé lors de la remise en avant de cette activité
@@ -275,6 +265,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     protected void stopRecord() {
-
+        //mediaRecorder.stop();
+        mediaRecorder.reset();
     }
 }
