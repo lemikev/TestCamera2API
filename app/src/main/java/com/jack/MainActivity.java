@@ -3,7 +3,6 @@ package com.jack;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.content.Context;
@@ -19,6 +18,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
@@ -26,15 +26,17 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
+import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 200;
 
     private TextureView textureView;
     private ImageButton recordImageButton;
-    private ImageButton stopRecordImageButton;
     private boolean recording = false;
 
     private String cameraId;
@@ -44,12 +46,15 @@ public class MainActivity extends AppCompatActivity {
     private Size imageDimension;
     private MediaRecorder mediaRecorder;
     protected Context mainActivity;
+    private File videoFolder;
+    private String videoFileName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mainActivity = this;
+        createVideoFolder();
 
         // TextureView
         textureView = (TextureView) findViewById(R.id.texture);
@@ -66,12 +71,22 @@ public class MainActivity extends AppCompatActivity {
                 if (recording) {
                     recording = false;
                     recordImageButton.setImageResource(R.drawable.icon_video_record);
-                    stopRecord();
+                    startPreview();
+                    mediaRecorder.stop();
+                    mediaRecorder.reset();
                 }
                 else {
+                    try {
+                        createVideoFileName();
+                    }
+                    catch(IOException e) {
+                        Toast.makeText(MainActivity.this, "ERREUR, Lors de la création du fichier vidéo.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
                     recording = true;
                     recordImageButton.setImageResource(R.drawable.icon_video_stop);
                     startRecord();
+                    mediaRecorder.start();
                 }
             }
         });
@@ -137,7 +152,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onOpened(CameraDevice camera) {
             cameraDevice = camera;
-            createCameraPreview();
+            startPreview();
         }
 
         @Override
@@ -179,18 +194,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // Configuration du préview dans le TextureView
-    protected void createCameraPreview() {
+    protected void startPreview() {
         try {
             // Configuration de la dimension de l'image selon la dimension de la caméra
             SurfaceTexture texture = textureView.getSurfaceTexture();
             texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
-            Surface surface = new Surface(texture);
+            Surface previewSurface = new Surface(texture);
 
             // Configuration d'un CaptureRequest.Builder
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            captureRequestBuilder.addTarget(surface);
+            captureRequestBuilder.addTarget(previewSurface);
 
-            cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback() {
+            cameraDevice.createCaptureSession(Arrays.asList(previewSurface), new CameraCaptureSession.StateCallback() {
                 @Override
                 public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
                     if (null == cameraDevice)
@@ -221,6 +236,7 @@ public class MainActivity extends AppCompatActivity {
     private void setUpMediaRecorder() throws IOException {
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mediaRecorder.setOutputFile(videoFileName);
         mediaRecorder.setVideoEncodingBitRate(1000000);
         mediaRecorder.setVideoFrameRate(30);
         mediaRecorder.setVideoSize(imageDimension.getWidth(), imageDimension.getHeight());
@@ -235,12 +251,12 @@ public class MainActivity extends AppCompatActivity {
             texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
             Surface previewSurface = new Surface(texture);
 
-            Surface enregistreurDeSurface = mediaRecorder.getSurface();
+            Surface recordSurface = mediaRecorder.getSurface();
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
             captureRequestBuilder.addTarget(previewSurface);
-            captureRequestBuilder.addTarget(enregistreurDeSurface);
+            captureRequestBuilder.addTarget(recordSurface);
 
-            cameraDevice.createCaptureSession(Arrays.asList(previewSurface, enregistreurDeSurface),
+            cameraDevice.createCaptureSession(Arrays.asList(previewSurface, recordSurface),
                     new CameraCaptureSession.StateCallback() {
                         @Override
                         public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
@@ -264,8 +280,20 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    protected void stopRecord() {
-        //mediaRecorder.stop();
-        mediaRecorder.reset();
+    private void createVideoFolder(){
+        File movieFile = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
+        videoFolder = new File(movieFile, "camera2Video");
+        if(!videoFolder.exists()) {
+            videoFolder.mkdirs();
+        }
+    }
+
+    private File createVideoFileName() throws IOException
+    {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String prepend = "VIDEO_" + timeStamp + "_";
+        File videoFile = File.createTempFile(prepend, ".mp4", videoFolder);
+        videoFileName = videoFile.getAbsolutePath();
+        return videoFile;
     }
 }
