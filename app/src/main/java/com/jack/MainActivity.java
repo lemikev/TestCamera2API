@@ -19,10 +19,12 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.widget.Chronometer;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
@@ -48,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
     protected Context mainActivity;
     private File videoFolder;
     private String videoFileName;
+    private Chronometer chronometer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,6 +66,9 @@ public class MainActivity extends AppCompatActivity {
         // MediaRecorder
         mediaRecorder = new MediaRecorder();
 
+        // Chronometer
+        chronometer = (Chronometer) findViewById(R.id.chronometer);
+
         // Start record ImageButton
         recordImageButton = (ImageButton) findViewById(R.id.recordImageButton);
 
@@ -70,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if (recording) {
                     recording = false;
+                    chronometer.stop();
                     recordImageButton.setImageResource(R.drawable.icon_video_record);
                     stopRecording();
                     startPreview();
@@ -83,6 +90,8 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
                     recording = true;
+                    chronometer.setBase(SystemClock.elapsedRealtime());
+                    chronometer.start();
                     recordImageButton.setImageResource(R.drawable.icon_video_stop);
                     startRecording();
                 }
@@ -178,8 +187,8 @@ public class MainActivity extends AppCompatActivity {
             // Permet d'obtenir la dimension de l'image par défault de cette
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-            imageDimension = map.getOutputSizes(SurfaceTexture.class)[0];
-            imageDimension = new Size(1920, 1080);
+            imageDimension = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class));
+            //imageDimension = new Size(1920, 1080);
 
             // Demande d'accès a la caméra si ce n'est pas déja fait
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -247,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
             mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
             mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
             mediaRecorder.setOutputFile(videoFileName);
-            mediaRecorder.setVideoEncodingBitRate(1000000);
+            mediaRecorder.setVideoEncodingBitRate(10000000);
             mediaRecorder.setVideoFrameRate(30);
             mediaRecorder.setVideoSize(imageDimension.getWidth(), imageDimension.getHeight());
             mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
@@ -306,5 +315,26 @@ public class MainActivity extends AppCompatActivity {
         File file = File.createTempFile(fileName, ".mp4", videoFolder);
         videoFileName = file.getAbsolutePath();
         return file;
+    }
+
+    // Selection de la dimension la plus proche de 1K sans la dépasser
+    private Size chooseOptimalSize(Size[] sizesSupported) {
+        Size sizeSelected = null;
+
+        for (Size size : sizesSupported) {
+            if (size.getHeight() <= 1080 && size.getWidth() <= 1920) {
+                if (sizeSelected == null)
+                    sizeSelected = size;
+                else {
+                    if (sizeSelected.getHeight() < size.getHeight() && sizeSelected.getWidth() < size.getWidth())
+                        sizeSelected = size;
+                }
+            }
+        }
+
+        if (sizeSelected != null)
+            return sizeSelected;
+        else
+            return sizesSupported[0];
     }
 }
