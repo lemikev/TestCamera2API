@@ -49,7 +49,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
         android:background="?android:attr/selectableItemBackground"
-        android:src="@drawable/icon_play"
+        android:src="@drawable/icon_video_play"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toEndOf="@+id/recordImageButton"
         app:layout_constraintTop_toBottomOf="@+id/texture" />
