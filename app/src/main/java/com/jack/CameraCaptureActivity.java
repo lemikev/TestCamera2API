@@ -62,7 +62,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
     // TODO remove
     String openTime = "", beforeStartTime = "", afterStartTime = "", onActiveTime = "", onConfiguredTime = "";
-    Integer nbrOnActive = 0;
     Button printButton;
 
     @Override
@@ -107,7 +106,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 Log.i("MyDebug", "after start time = " + afterStartTime);
                 Log.i("MyDebug", "onConfigured time = " + onConfiguredTime);
                 Log.i("MyDebug", "onActive time = " + onActiveTime);
-                Log.i("MyDebug", "Number of OnActive calls = " + nbrOnActive.toString());
             }
         });
     }
@@ -182,6 +180,12 @@ public class CameraCaptureActivity extends AppCompatActivity {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+
+        textureViewUsage = recording;
+        textureView.setVisibility(View.VISIBLE);
+        dividerView.setVisibility(View.VISIBLE);
+        playImageButton.setVisibility(View.INVISIBLE);
+        recordImageButton.setImageResource(R.drawable.icon_video_stop);
     }
 
 
@@ -234,11 +238,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
         } catch (IOException | CameraAccessException e) {
             e.printStackTrace();
         }
-        textureViewUsage = recording;
-        textureView.setVisibility(View.VISIBLE);
-        dividerView.setVisibility(View.VISIBLE);
-        playImageButton.setVisibility(View.INVISIBLE);
-        recordImageButton.setImageResource(R.drawable.icon_video_stop);
     }
 
     private final CameraCaptureSession.StateCallback cameraCaptureSessionStateCallback = new CameraCaptureSession.StateCallback() {
@@ -261,7 +260,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
         @Override
         public void onActive(@NonNull CameraCaptureSession cameraCaptureSession) {
-            nbrOnActive++;
             if (onActiveTime.isEmpty() && textureViewUsage == recording)
                 onActiveTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
         }
@@ -277,9 +275,9 @@ public class CameraCaptureActivity extends AppCompatActivity {
         if (textureViewUsage == recording) {
             mediaRecorder.stop();
             mediaRecorder.reset();
-            textureViewUsage = idle;
         }
 
+        textureViewUsage = idle;
         textureView.setVisibility(View.INVISIBLE);
         dividerView.setVisibility(View.INVISIBLE);
         playImageButton.setVisibility(View.VISIBLE);
@@ -291,6 +289,9 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
     // Start playing
     protected void startPlaying() {
+        if (textureViewUsage != idle)
+            return;
+
         if (!textureView.isAvailable())
             return;
 
@@ -302,17 +303,19 @@ public class CameraCaptureActivity extends AppCompatActivity {
             return;
         }
         mediaPlayer.prepareAsync();
+
         mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mp) {
                 mediaPlayer.start();
-                textureViewUsage = playing;
-                textureView.setVisibility(View.VISIBLE);
-                dividerView.setVisibility(View.VISIBLE);
-                recordImageButton.setVisibility(View.INVISIBLE);
-                playImageButton.setImageResource(R.drawable.icon_video_stop);
             }
         });
+
+        textureViewUsage = playing;
+        textureView.setVisibility(View.VISIBLE);
+        dividerView.setVisibility(View.VISIBLE);
+        recordImageButton.setVisibility(View.INVISIBLE);
+        playImageButton.setImageResource(R.drawable.icon_video_stop);
     }
 
     protected void stopPlaying() {
