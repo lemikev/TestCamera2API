@@ -49,6 +49,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
     private TextureView textureView;
     private MediaPlayer mediaPlayer;
+    private View dividerView;
 
     private String cameraId;
     private CameraDevice cameraDevice = null;
@@ -70,33 +71,17 @@ public class CameraCaptureActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         mainActivity = this;
 
-        // Create a TextureView
         textureView = (TextureView) findViewById(R.id.texture);
-
-        // Create a MediaRecorder
+        dividerView = (View) findViewById(R.id.dividerView);
         mediaRecorder = new MediaRecorder();
-
-        // Create a MediaPlayer
         mediaPlayer = new MediaPlayer();
 
         // Start & stop recording button
         recordImageButton = (ImageButton) findViewById(R.id.recordImageButton);
         recordImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (textureViewUsage == idle) {
-                    try {
-                        createVideoFile();
-                    }
-                    catch(IOException e) {
-                        Toast.makeText(CameraCaptureActivity.this, "ERREUR, Lors de la création du fichier vidéo.", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    openTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
+                if (textureViewUsage == idle)
                     startRecording();
-                    playImageButton.setVisibility(View.INVISIBLE);
-                    recordImageButton.setImageResource(R.drawable.icon_video_stop);
-                }
-
                 else if (textureViewUsage == recording)
                     stopRecording();
             }
@@ -108,7 +93,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if (textureViewUsage == idle)
                     startPlaying();
-
                 else if (textureViewUsage == playing)
                     stopPlaying();
             }
@@ -251,6 +235,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
             e.printStackTrace();
         }
         textureViewUsage = recording;
+        textureView.setVisibility(View.VISIBLE);
+        dividerView.setVisibility(View.VISIBLE);
         playImageButton.setVisibility(View.INVISIBLE);
         recordImageButton.setImageResource(R.drawable.icon_video_stop);
     }
@@ -294,6 +280,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
             textureViewUsage = idle;
         }
 
+        textureView.setVisibility(View.INVISIBLE);
+        dividerView.setVisibility(View.INVISIBLE);
         playImageButton.setVisibility(View.VISIBLE);
         recordImageButton.setImageResource(R.drawable.icon_video_record);
     }
@@ -305,6 +293,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
     protected void startPlaying() {
         if (!textureView.isAvailable())
             return;
+
         mediaPlayer.setSurface(new Surface(textureView.getSurfaceTexture()));
         try {
             mediaPlayer.setDataSource(getFilesDir().getAbsolutePath() + File.separator + "myvideo.mp4");
@@ -318,6 +307,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
             public void onPrepared(MediaPlayer mp) {
                 mediaPlayer.start();
                 textureViewUsage = playing;
+                textureView.setVisibility(View.VISIBLE);
+                dividerView.setVisibility(View.VISIBLE);
                 recordImageButton.setVisibility(View.INVISIBLE);
                 playImageButton.setImageResource(R.drawable.icon_video_stop);
             }
@@ -331,6 +322,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
             textureViewUsage = idle;
         }
 
+        textureView.setVisibility(View.INVISIBLE);
+        dividerView.setVisibility(View.INVISIBLE);
         recordImageButton.setVisibility(View.VISIBLE);
         playImageButton.setImageResource(R.drawable.icon_video_play);
     }
