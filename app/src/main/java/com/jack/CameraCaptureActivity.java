@@ -3,7 +3,6 @@ package com.jack;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.content.Context;
@@ -36,45 +35,6 @@ import java.util.Date;
 
 import android.util.Log;
 
-/* Call sequences
-
-Upon create
-  -> onSurfaceTextureAvailable
-    -> startCamera()
-      -> onOpened
-        -> startViewing()
-          -> onConfigured
-
-Upon onResume
-  -> startCamera()
-    -> onOpened
-      -> startViewing()
-          -> onConfigured
-
-Upon onPause
-  -> stopCamera()
-
-Upon start recording button
-  -> startRecording()
-    -> onConfigured
-
-Upon stop recording button
-  -> stopRecording()
-  -> startViewing()
-    -> onConfigured
-
-Upon start playing button
-  -> stopCamera()
-  -> startPlaying()
-
-Upon stop playing button
-  -> stopPlaying()
-  -> startCamera()
-    -> onOpened
-      -> startViewing()
-        -> onConfigured
- */
-
 public class CameraCaptureActivity extends AppCompatActivity {
     private CameraCaptureActivity cameraCaptureActivity = this;
     private static final int REQUEST_CAMERA_PERMISSION = 200;
@@ -83,10 +43,9 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private ImageButton playImageButton;
 
     private static int idle = 0;
-    private static int viewing = 1;
-    private static int recording = 2;
-    private static int playing = 3;
-    private int activityState = idle;
+    private static int recording = 1;
+    private static int playing = 2;
+    private int textureViewUsage = idle;
 
     private TextureView textureView;
     private MediaPlayer mediaPlayer;
@@ -113,7 +72,6 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
         // Create a TextureView
         textureView = (TextureView) findViewById(R.id.texture);
-        textureView.setSurfaceTextureListener(textureListener);
 
         // Create a MediaRecorder
         mediaRecorder = new MediaRecorder();
@@ -125,7 +83,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
         recordImageButton = (ImageButton) findViewById(R.id.recordImageButton);
         recordImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (activityState == viewing) {
+                if (textureViewUsage == idle) {
                     try {
                         createVideoFile();
                     }
@@ -135,20 +93,12 @@ public class CameraCaptureActivity extends AppCompatActivity {
                     }
                     openTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
                     startRecording();
-
-                    // Buttons state update
                     playImageButton.setVisibility(View.INVISIBLE);
                     recordImageButton.setImageResource(R.drawable.icon_video_stop);
                 }
 
-                else if (activityState == recording) {
+                else if (textureViewUsage == recording)
                     stopRecording();
-                    startViewing();
-
-                    // Buttons state update
-                    playImageButton.setVisibility(View.VISIBLE);
-                    recordImageButton.setImageResource(R.drawable.icon_video_record);
-                }
             }
         });
 
@@ -156,23 +106,11 @@ public class CameraCaptureActivity extends AppCompatActivity {
         playImageButton = (ImageButton) findViewById(R.id.playImageButton);
         playImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (activityState == viewing) {
-                    stopCamera();
+                if (textureViewUsage == idle)
                     startPlaying();
 
-                    // Buttons state update
-                    recordImageButton.setVisibility(View.INVISIBLE);
-                    playImageButton.setImageResource(R.drawable.icon_video_stop);
-                }
-
-                else if (activityState == playing) {
+                else if (textureViewUsage == playing)
                     stopPlaying();
-                    startCamera();
-
-                    // Buttons state update
-                    recordImageButton.setVisibility(View.VISIBLE);
-                    playImageButton.setImageResource(R.drawable.icon_video_play);
-                }
             }
         });
 
@@ -194,19 +132,18 @@ public class CameraCaptureActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        activityState = idle;
-
-        if (textureView.isAvailable()) {
-            startCamera();
-        } else {
-            textureView.setSurfaceTextureListener(textureListener);
-        }
+        textureViewUsage = idle;
     }
 
     // Upon a pause of this activity, close the camera
     @Override
     protected void onPause() {
-        stopCamera();
+        if (textureViewUsage == recording)
+            stopRecording();
+
+        if (textureViewUsage == playing)
+            stopPlaying();
+
         super.onPause();
     }
 
@@ -222,9 +159,22 @@ public class CameraCaptureActivity extends AppCompatActivity {
     }
 
     // ====================================================================
-    // Camera
+    // Recording
 
-    private void startCamera() {
+    private void startRecording() {
+        if (textureViewUsage != idle)
+            return;
+
+        try {
+            createVideoFile();
+        }
+        catch(IOException e) {
+            Toast.makeText(CameraCaptureActivity.this, "ERREUR, Lors de la création du fichier vidéo.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        openTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
+
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
 
         try {
@@ -250,38 +200,26 @@ public class CameraCaptureActivity extends AppCompatActivity {
         }
     }
 
-    private void stopCamera() {
-        if (cameraDevice != null) {
-            cameraDevice.close();
-            cameraDevice = null;
+
+    private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
+        @Override
+        public void onOpened(CameraDevice camera) {
+            cameraDevice = camera;
+            startCaptureSession();
         }
-        activityState = idle;
-    }
 
-    // ====================================================================
-    // Viewing
-
-    protected void startViewing() {
-        try {
-            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
-
-            SurfaceTexture texture = textureView.getSurfaceTexture();
-            texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
-            Surface previewSurface = new Surface(texture);
-            captureRequestBuilder.addTarget(previewSurface);
-
-            cameraDevice.createCaptureSession(Arrays.asList(previewSurface), cameraCaptureSessionStateCallback, null);
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
+        @Override
+        public void onDisconnected(CameraDevice camera) {
+            camera.close();
         }
-        activityState = viewing;
-    }
 
-    // ====================================================================
-    // Recording
+        @Override
+        public void onError(CameraDevice camera, int error) {
+            stopRecording();
+        }
+    };
 
-    // Configuration and start of the TextureView and MediaRecorder
-    protected void startRecording() {
+    protected void startCaptureSession() {
         try {
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
 
@@ -312,14 +250,52 @@ public class CameraCaptureActivity extends AppCompatActivity {
         } catch (IOException | CameraAccessException e) {
             e.printStackTrace();
         }
-        activityState = recording;
+        textureViewUsage = recording;
+        playImageButton.setVisibility(View.INVISIBLE);
+        recordImageButton.setImageResource(R.drawable.icon_video_stop);
     }
 
-    // Stop recording
+    private final CameraCaptureSession.StateCallback cameraCaptureSessionStateCallback = new CameraCaptureSession.StateCallback() {
+        @Override
+        public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+            if (onConfiguredTime.isEmpty() && textureViewUsage == recording)
+                onConfiguredTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
+
+            try {
+                cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+            Toast.makeText(CameraCaptureActivity.this, "ERREUR, imposible de démaré la capture du vidéo", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onActive(@NonNull CameraCaptureSession cameraCaptureSession) {
+            nbrOnActive++;
+            if (onActiveTime.isEmpty() && textureViewUsage == recording)
+                onActiveTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
+        }
+    };
+
+
     protected void stopRecording() {
-        mediaRecorder.stop();
-        mediaRecorder.reset();
-        activityState = idle;
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
+
+        if (textureViewUsage == recording) {
+            mediaRecorder.stop();
+            mediaRecorder.reset();
+            textureViewUsage = idle;
+        }
+
+        playImageButton.setVisibility(View.VISIBLE);
+        recordImageButton.setImageResource(R.drawable.icon_video_record);
     }
 
     // ====================================================================
@@ -341,86 +317,23 @@ public class CameraCaptureActivity extends AppCompatActivity {
             @Override
             public void onPrepared(MediaPlayer mp) {
                 mediaPlayer.start();
-                activityState = playing;
+                textureViewUsage = playing;
+                recordImageButton.setVisibility(View.INVISIBLE);
+                playImageButton.setImageResource(R.drawable.icon_video_stop);
             }
         });
     }
 
     protected void stopPlaying() {
-        if (activityState == playing) {
+        if (textureViewUsage == playing) {
             mediaPlayer.stop();
             mediaPlayer.reset();
-            activityState = idle;
+            textureViewUsage = idle;
         }
+
+        recordImageButton.setVisibility(View.VISIBLE);
+        playImageButton.setImageResource(R.drawable.icon_video_play);
     }
-
-    // ====================================================================
-    // Callbacks
-
-    TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
-        @Override
-        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
-            if (activityState == idle)
-                startCamera();
-        }
-
-        @Override
-        public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-        }
-
-        @Override
-        public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-            return false;
-        }
-
-        @Override
-        public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-        }
-    };
-
-    private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
-        @Override
-        public void onOpened(CameraDevice camera) {
-            cameraDevice = camera;
-            startViewing();
-        }
-
-        @Override
-        public void onDisconnected(CameraDevice camera) {
-            camera.close();
-        }
-
-        @Override
-        public void onError(CameraDevice camera, int error) {
-            stopCamera();
-        }
-    };
-
-    private final CameraCaptureSession.StateCallback cameraCaptureSessionStateCallback = new CameraCaptureSession.StateCallback() {
-        @Override
-        public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-            if (onConfiguredTime.isEmpty() && activityState == recording)
-                onConfiguredTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
-
-            try {
-                cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
-            } catch (CameraAccessException e) {
-                e.printStackTrace();
-            }
-        }
-
-        @Override
-        public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-            Toast.makeText(CameraCaptureActivity.this, "ERREUR, imposible de démaré la capture du vidéo", Toast.LENGTH_SHORT).show();
-        }
-
-        @Override
-        public void onActive(@NonNull CameraCaptureSession cameraCaptureSession) {
-            nbrOnActive++;
-            if (onActiveTime.isEmpty() && activityState == recording)
-                onActiveTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
-        }
-    };
 
     // ====================================================================
     // Tools

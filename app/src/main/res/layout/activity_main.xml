@@ -54,4 +54,13 @@
         app:layout_constraintStart_toEndOf="@+id/recordImageButton"
         app:layout_constraintTop_toBottomOf="@+id/texture" />
 
+    <View
+        android:id="@+id/divider"
+        android:layout_width="3dp"
+        android:layout_height="729dp"
+        android:background="@android:color/holo_blue_dark"
+        app:layout_constraintBottom_toBottomOf="@+id/texture"
+        app:layout_constraintEnd_toEndOf="@+id/texture"
+        app:layout_constraintStart_toStartOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
