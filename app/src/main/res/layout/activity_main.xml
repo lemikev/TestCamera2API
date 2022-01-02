@@ -25,35 +25,26 @@
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
         android:layout_alignParentBottom="true"
-        android:layout_marginStart="32dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
         android:background="?android:attr/selectableItemBackground"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:srcCompat="@drawable/icon_video_record" />
-
-    <Button
-        android:id="@+id/printButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="32dp"
-        android:text="Debug"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/texture"
-        app:layout_constraintVertical_bias="0.0" />
+        app:srcCompat="@drawable/icon_video_record" />
 
     <ImageButton
         android:id="@+id/playImageButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
+        android:layout_marginEnd="16dp"
         android:background="?android:attr/selectableItemBackground"
         android:src="@drawable/icon_video_play"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/recordImageButton"
-        app:layout_constraintTop_toBottomOf="@+id/texture" />
+        app:layout_constraintEnd_toStartOf="@+id/forwardImageButton"
+        app:layout_constraintTop_toBottomOf="@+id/texture"
+        app:layout_constraintVertical_bias="0.541" />
 
     <View
         android:id="@+id/dividerView"
@@ -64,5 +55,27 @@
         app:layout_constraintBottom_toBottomOf="@+id/texture"
         app:layout_constraintEnd_toEndOf="@+id/texture"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <ImageButton
+        android:id="@+id/reverseImageButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:background="?android:attr/selectableItemBackground"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/playImageButton"
+        app:layout_constraintTop_toBottomOf="@+id/texture"
+        app:srcCompat="@drawable/icon_video_rewind" />
+
+    <ImageButton
+        android:id="@+id/forwardImageButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="24dp"
+        android:background="?android:attr/selectableItemBackground"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/texture"
+        app:srcCompat="@drawable/icon_video_forward" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

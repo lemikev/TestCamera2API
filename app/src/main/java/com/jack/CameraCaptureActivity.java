@@ -19,6 +19,10 @@ import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.util.Size;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -40,7 +44,10 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 200;
 
     private ImageButton recordImageButton;
+    private ImageButton reverseImageButton;
     private ImageButton playImageButton;
+    private ImageButton forwardImageButton;
+
 
     private static int idle = 0;
     private static int recording = 1;
@@ -59,6 +66,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private MediaRecorder mediaRecorder;
     protected Context mainActivity;
     private String videoFileName;
+    private int screenPosition;
+    private int mediaPosition;
 
     // TODO remove
     String openTime = "", beforeStartTime = "", afterStartTime = "", onActiveTime = "", onConfiguredTime = "";
@@ -75,39 +84,118 @@ public class CameraCaptureActivity extends AppCompatActivity {
         mediaRecorder = new MediaRecorder();
         mediaPlayer = new MediaPlayer();
 
-        // Start & stop recording button
+        // Recording button
         recordImageButton = (ImageButton) findViewById(R.id.recordImageButton);
         recordImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                if (textureViewUsage == playing)
+                    stopPlaying();
+
                 if (textureViewUsage == idle)
                     startRecording();
-                else if (textureViewUsage == recording)
+                else
                     stopRecording();
             }
         });
 
-        // Start & stop playing button
+        // Play button
         playImageButton = (ImageButton) findViewById(R.id.playImageButton);
         playImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (textureViewUsage == idle)
                     startPlaying();
-                else if (textureViewUsage == playing)
-                    stopPlaying();
+                else if (textureViewUsage == playing) {
+                    if (mediaPlayer.isPlaying())
+                        pauseVideo();
+                    else
+                        restartVideo();
+                }
             }
         });
 
-        // Debug print button
-        printButton = (Button) findViewById(R.id.printButton);
-        printButton.setOnClickListener(new View.OnClickListener() {
+        // Forward button
+        forwardImageButton = (ImageButton) findViewById(R.id.forwardImageButton);
+        forwardImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                if (textureViewUsage != playing)
+                    return;
+
+                if (mediaPlayer.isPlaying())
+                    pauseVideo();
+
+                int seekTo = mediaPlayer.getCurrentPosition() + 4000;
+                if (seekTo > mediaPlayer.getDuration())
+                    seekTo = mediaPlayer.getDuration();
+
+                mediaPlayer.seekTo(seekTo);
+            }
+        });
+
+        // Reverse button
+        reverseImageButton = (ImageButton) findViewById(R.id.reverseImageButton);
+        reverseImageButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (textureViewUsage != playing)
+                    return;
+
+                if (mediaPlayer.isPlaying())
+                    pauseVideo();
+
+                int seekTo = mediaPlayer.getCurrentPosition() - 4000;
+                if (seekTo < 0)
+                    seekTo = 0;
+
+                mediaPlayer.seekTo(seekTo);
+            }
+        });
+
+        textureView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        pauseVideo();
+                        screenPosition = (int) event.getX();
+                        mediaPosition = mediaPlayer.getCurrentPosition();
+                    break;
+
+                    case MotionEvent.ACTION_MOVE:
+                        int newScreenPosition = (int) event.getX();
+                        int seekTo = mediaPosition + 2 * (newScreenPosition - screenPosition);
+
+                        if (seekTo < 0)
+                            seekTo = 0;
+                        if (seekTo > mediaPlayer.getDuration())
+                            seekTo = mediaPlayer.getDuration();
+
+                        if (Math.abs(mediaPlayer.getCurrentPosition() - seekTo) > 33)
+                            mediaPlayer.seekTo(seekTo, MediaPlayer.SEEK_CLOSEST);
+                        break;
+                }
+                return true;
+            }
+        });
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.camera_capture_activity_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.debugMenuItem:
                 Log.i("MyDebug", "open time " + openTime);
                 Log.i("MyDebug", "before start time = " + beforeStartTime);
                 Log.i("MyDebug", "after start time = " + afterStartTime);
                 Log.i("MyDebug", "onConfigured time = " + onConfiguredTime);
                 Log.i("MyDebug", "onActive time = " + onActiveTime);
-            }
-        });
+                return true;
+        }
+        return false;
     }
 
     // Upon a resume of this activity, open the camera
@@ -185,6 +273,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
         textureView.setVisibility(View.VISIBLE);
         dividerView.setVisibility(View.VISIBLE);
         playImageButton.setVisibility(View.INVISIBLE);
+        forwardImageButton.setVisibility(View.INVISIBLE);
+        reverseImageButton.setVisibility(View.INVISIBLE);
         recordImageButton.setImageResource(R.drawable.icon_video_stop);
     }
 
@@ -281,6 +371,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
         textureView.setVisibility(View.INVISIBLE);
         dividerView.setVisibility(View.INVISIBLE);
         playImageButton.setVisibility(View.VISIBLE);
+        forwardImageButton.setVisibility(View.VISIBLE);
+        reverseImageButton.setVisibility(View.VISIBLE);
         recordImageButton.setImageResource(R.drawable.icon_video_record);
     }
 
@@ -314,9 +406,9 @@ public class CameraCaptureActivity extends AppCompatActivity {
         textureViewUsage = playing;
         textureView.setVisibility(View.VISIBLE);
         dividerView.setVisibility(View.VISIBLE);
-        recordImageButton.setVisibility(View.INVISIBLE);
-        playImageButton.setImageResource(R.drawable.icon_video_stop);
+        playImageButton.setImageResource(R.drawable.icon_video_pause);
     }
+
 
     protected void stopPlaying() {
         if (textureViewUsage == playing) {
@@ -327,8 +419,27 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
         textureView.setVisibility(View.INVISIBLE);
         dividerView.setVisibility(View.INVISIBLE);
-        recordImageButton.setVisibility(View.VISIBLE);
         playImageButton.setImageResource(R.drawable.icon_video_play);
+    }
+
+    protected void pauseVideo() {
+        if (textureViewUsage != playing)
+            return;
+
+        if (mediaPlayer.isPlaying()) {
+            mediaPlayer.pause();
+            playImageButton.setImageResource(R.drawable.icon_video_play);
+        }
+    }
+
+    protected void restartVideo() {
+        if (textureViewUsage != playing)
+            return;
+
+        if (!mediaPlayer.isPlaying()) {
+            mediaPlayer.start();
+            playImageButton.setImageResource(R.drawable.icon_video_pause);
+        }
     }
 
     // ====================================================================
