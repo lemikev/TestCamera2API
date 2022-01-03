@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.SurfaceTexture;
@@ -15,6 +16,8 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
@@ -28,6 +31,7 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
@@ -36,18 +40,19 @@ import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.TimeZone;
 
 import android.util.Log;
 
-public class CameraCaptureActivity extends AppCompatActivity {
+public class CameraCaptureActivity extends AppCompatActivity  {
     private CameraCaptureActivity cameraCaptureActivity = this;
     private static final int REQUEST_CAMERA_PERMISSION = 200;
+    private static final int REQUEST_GPS_PERMISSION = 201;
 
     private ImageButton recordImageButton;
     private ImageButton reverseImageButton;
     private ImageButton playImageButton;
     private ImageButton forwardImageButton;
-
 
     private static int idle = 0;
     private static int recording = 1;
@@ -57,6 +62,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private TextureView textureView;
     private MediaPlayer mediaPlayer;
     private View dividerView;
+    private TextView timestampTextView;
 
     private String cameraId;
     private CameraDevice cameraDevice = null;
@@ -68,11 +74,15 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private String videoFileName;
     private int screenPosition;
     private int mediaPosition;
+    private long startRecordingTimestamp = 0;
+    long gpsOffset = 0;
+    TimeZone timezone;
 
     // TODO remove
     String openTime = "", beforeStartTime = "", afterStartTime = "", onActiveTime = "", onConfiguredTime = "";
     Button printButton;
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -83,6 +93,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
         dividerView = (View) findViewById(R.id.dividerView);
         mediaRecorder = new MediaRecorder();
         mediaPlayer = new MediaPlayer();
+        timestampTextView = (TextView) findViewById(R.id.timestampTextView);;
 
         // Recording button
         recordImageButton = (ImageButton) findViewById(R.id.recordImageButton);
@@ -127,7 +138,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 if (seekTo > mediaPlayer.getDuration())
                     seekTo = mediaPlayer.getDuration();
 
-                mediaPlayer.seekTo(seekTo);
+                mediaPlayer.seekTo(seekTo, mediaPlayer.SEEK_CLOSEST);
+                displaySeekTime(seekTo);
             }
         });
 
@@ -145,7 +157,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
                 if (seekTo < 0)
                     seekTo = 0;
 
-                mediaPlayer.seekTo(seekTo);
+                mediaPlayer.seekTo(seekTo, mediaPlayer.SEEK_CLOSEST);
+                displaySeekTime(seekTo);
             }
         });
 
@@ -161,20 +174,25 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
                     case MotionEvent.ACTION_MOVE:
                         int newScreenPosition = (int) event.getX();
-                        int seekTo = mediaPosition + 2 * (newScreenPosition - screenPosition);
+                        int seekTo = mediaPosition + (newScreenPosition - screenPosition);
 
                         if (seekTo < 0)
                             seekTo = 0;
                         if (seekTo > mediaPlayer.getDuration())
                             seekTo = mediaPlayer.getDuration();
 
-                        if (Math.abs(mediaPlayer.getCurrentPosition() - seekTo) > 33)
-                            mediaPlayer.seekTo(seekTo, MediaPlayer.SEEK_CLOSEST);
+                        if (Math.abs(mediaPlayer.getCurrentPosition() - seekTo) > 33) {
+                            mediaPlayer.seekTo(seekTo, mediaPlayer.SEEK_CLOSEST);
+                            displaySeekTime(seekTo);
+                        }
                         break;
                 }
                 return true;
             }
         });
+
+        timezone = TimeZone.getDefault();
+        getGpsOffset(this);
     }
 
     @Override
@@ -220,10 +238,21 @@ public class CameraCaptureActivity extends AppCompatActivity {
     // Message displayed if a user deny access to the camera
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_CAMERA_PERMISSION) {
-            if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
-                Toast.makeText(CameraCaptureActivity.this, "Vous devez donner les droits accèss à la caméra pour capturer des temps par vidéo.", Toast.LENGTH_LONG).show();
-                finish();
+        switch (requestCode) {
+            case REQUEST_CAMERA_PERMISSION: {
+                if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
+                    Toast.makeText(CameraCaptureActivity.this, "Vous devez donner les droits accèss à la caméra pour capturer des temps par vidéo.", Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            }
+
+            case REQUEST_GPS_PERMISSION: {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    boolean permissionGranted = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+                    if (permissionGranted) {
+                        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 0, locationListener);
+                    }
+                }
             }
         }
     }
@@ -350,8 +379,11 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
         @Override
         public void onActive(@NonNull CameraCaptureSession cameraCaptureSession) {
-            if (onActiveTime.isEmpty() && textureViewUsage == recording)
+            if (textureViewUsage == recording) {
+                startRecordingTimestamp = System.currentTimeMillis();
+                startRecordingTimestamp += timezone.getOffset(startRecordingTimestamp) + gpsOffset;
                 onActiveTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
+            }
         }
     };
 
@@ -419,6 +451,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
         textureView.setVisibility(View.INVISIBLE);
         dividerView.setVisibility(View.INVISIBLE);
+        timestampTextView.setVisibility(View.INVISIBLE);
         playImageButton.setImageResource(R.drawable.icon_video_play);
     }
 
@@ -428,6 +461,8 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
         if (mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
+            displaySeekTime(mediaPlayer.getCurrentPosition());
+            timestampTextView.setVisibility(View.VISIBLE);
             playImageButton.setImageResource(R.drawable.icon_video_play);
         }
     }
@@ -438,8 +473,15 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
         if (!mediaPlayer.isPlaying()) {
             mediaPlayer.start();
+            timestampTextView.setVisibility(View.INVISIBLE);
             playImageButton.setImageResource(R.drawable.icon_video_pause);
         }
+    }
+
+    private void displaySeekTime(int seekTo) {
+        long seekTime = startRecordingTimestamp + seekTo;
+        String seekTime_s = String.format("%02d:%02d:%02d %03d (GPS delta %d)", seekTime / 3600000 % 24, seekTime / 60000 % 60, seekTime / 1000 % 60, seekTime % 1000, gpsOffset);
+        timestampTextView.setText(seekTime_s);
     }
 
     // ====================================================================
@@ -474,5 +516,42 @@ public class CameraCaptureActivity extends AppCompatActivity {
             return sizeSelected;
         else
             return sizesSupported[0];
+    }
+
+    // ====================================================================
+    // GPS interaction
+
+    private static LocationManager locationManager = null;
+    private static LocationListener locationListener;
+
+    // Enable the Location service to get single GPS fix
+    @SuppressLint("MissingPermission")
+    private void getGpsOffset(Context context) {
+        if (locationManager == null) {
+            locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+            locationListener = new LocationListener() {
+
+                public void onLocationChanged(android.location.Location location) {
+                    long deviceTime = System.currentTimeMillis();
+                    long gpsTime = location.getTime();
+                    gpsOffset = gpsTime - deviceTime;
+                }
+
+                public void onStatusChanged(String provider, int status, android.os.Bundle extras) {
+                }
+
+                public void onProviderEnabled(String provider) {
+                }
+
+                public void onProviderDisabled(String provider) {
+                }
+            };
+
+            boolean permissionGranted = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+            if (permissionGranted) {
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 0, locationListener);
+            } else
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_GPS_PERMISSION);
+        }
     }
 }

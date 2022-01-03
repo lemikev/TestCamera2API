@@ -11,12 +11,13 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_alignParentTop="true"
+        android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@+id/recordImageButton"
+        app:layout_constraintBottom_toTopOf="@+id/reverseImageButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/timestampTextView"
         tools:visibility="invisible" />
 
     <ImageButton
@@ -26,12 +27,10 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentBottom="true"
         android:layout_marginStart="24dp"
-        android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
         android:background="?android:attr/selectableItemBackground"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/texture"
         app:srcCompat="@drawable/icon_video_record" />
 
     <ImageButton
@@ -39,32 +38,32 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
         android:background="?android:attr/selectableItemBackground"
         android:src="@drawable/icon_video_play"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/forwardImageButton"
-        app:layout_constraintTop_toBottomOf="@+id/texture"
-        app:layout_constraintVertical_bias="0.541" />
+        app:layout_constraintEnd_toStartOf="@+id/forwardImageButton" />
 
     <View
         android:id="@+id/dividerView"
         android:layout_width="3dp"
-        android:layout_height="729dp"
+        android:layout_height="0dp"
         android:background="@android:color/holo_blue_dark"
         android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="@+id/texture"
         app:layout_constraintEnd_toEndOf="@+id/texture"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/texture" />
 
     <ImageButton
         android:id="@+id/reverseImageButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
         android:background="?android:attr/selectableItemBackground"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/playImageButton"
-        app:layout_constraintTop_toBottomOf="@+id/texture"
         app:srcCompat="@drawable/icon_video_rewind" />
 
     <ImageButton
@@ -72,10 +71,22 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="24dp"
+        android:layout_marginBottom="8dp"
         android:background="?android:attr/selectableItemBackground"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/texture"
         app:srcCompat="@drawable/icon_video_forward" />
+
+    <TextView
+        android:id="@+id/timestampTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="00:00:00 000"
+        android:textStyle="bold"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="@+id/texture"
+        app:layout_constraintStart_toStartOf="@+id/texture"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
