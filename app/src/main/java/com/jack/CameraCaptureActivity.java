@@ -31,6 +31,7 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -53,16 +54,20 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     private ImageButton reverseImageButton;
     private ImageButton playImageButton;
     private ImageButton forwardImageButton;
+    private Button resultButton;
 
-    private static int idle = 0;
-    private static int recording = 1;
-    private static int playing = 2;
-    private int textureViewUsage = idle;
+    private static final int idle = 0;
+    private static final int recording = 1;
+    private static final int playing = 2;
+    private static final int results = 3;
+    private int viewUsage = idle;
+    private int previousViewUsage;
 
     private TextureView textureView;
     private MediaPlayer mediaPlayer;
     private View dividerView;
     private TextView timestampTextView;
+    private ListView listView;
 
     private String cameraId;
     private CameraDevice cameraDevice = null;
@@ -93,16 +98,17 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         dividerView = (View) findViewById(R.id.dividerView);
         mediaRecorder = new MediaRecorder();
         mediaPlayer = new MediaPlayer();
-        timestampTextView = (TextView) findViewById(R.id.timestampTextView);;
+        timestampTextView = (TextView) findViewById(R.id.timestampTextView);
+        listView = (ListView) findViewById(R.id.listView);
 
         // Recording button
         recordImageButton = (ImageButton) findViewById(R.id.recordImageButton);
         recordImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (textureViewUsage == playing)
+                if (viewUsage == playing)
                     stopPlaying();
 
-                if (textureViewUsage == idle)
+                if (viewUsage == idle)
                     startRecording();
                 else
                     stopRecording();
@@ -113,9 +119,9 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         playImageButton = (ImageButton) findViewById(R.id.playImageButton);
         playImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (textureViewUsage == idle)
+                if (viewUsage == idle)
                     startPlaying();
-                else if (textureViewUsage == playing) {
+                else if (viewUsage == playing) {
                     if (mediaPlayer.isPlaying())
                         pauseVideo();
                     else
@@ -128,7 +134,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         forwardImageButton = (ImageButton) findViewById(R.id.forwardImageButton);
         forwardImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (textureViewUsage != playing)
+                if (viewUsage != playing)
                     return;
 
                 if (mediaPlayer.isPlaying())
@@ -147,7 +153,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         reverseImageButton = (ImageButton) findViewById(R.id.reverseImageButton);
         reverseImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (textureViewUsage != playing)
+                if (viewUsage != playing)
                     return;
 
                 if (mediaPlayer.isPlaying())
@@ -191,6 +197,18 @@ public class CameraCaptureActivity extends AppCompatActivity  {
             }
         });
 
+        resultButton = (Button) findViewById(R.id.resultButton);
+        resultButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (viewUsage != results) {
+                    previousViewUsage = viewUsage;
+                    setViewUsage(results);
+
+                } else
+                    setViewUsage(previousViewUsage);
+            }
+        });
+
         timezone = TimeZone.getDefault();
         getGpsOffset(this);
     }
@@ -220,16 +238,16 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     @Override
     protected void onResume() {
         super.onResume();
-        textureViewUsage = idle;
+        viewUsage = idle;
     }
 
     // Upon a pause of this activity, close the camera
     @Override
     protected void onPause() {
-        if (textureViewUsage == recording)
+        if (viewUsage == recording)
             stopRecording();
 
-        if (textureViewUsage == playing)
+        if (viewUsage == playing)
             stopPlaying();
 
         super.onPause();
@@ -261,7 +279,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     // Recording
 
     private void startRecording() {
-        if (textureViewUsage != idle)
+        if (viewUsage != idle)
             return;
 
         try {
@@ -298,13 +316,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
             e.printStackTrace();
         }
 
-        textureViewUsage = recording;
-        textureView.setVisibility(View.VISIBLE);
-        dividerView.setVisibility(View.VISIBLE);
-        playImageButton.setVisibility(View.INVISIBLE);
-        forwardImageButton.setVisibility(View.INVISIBLE);
-        reverseImageButton.setVisibility(View.INVISIBLE);
-        recordImageButton.setImageResource(R.drawable.icon_video_stop);
+        setViewUsage(recording);
     }
 
 
@@ -362,7 +374,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     private final CameraCaptureSession.StateCallback cameraCaptureSessionStateCallback = new CameraCaptureSession.StateCallback() {
         @Override
         public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-            if (onConfiguredTime.isEmpty() && textureViewUsage == recording)
+            if (onConfiguredTime.isEmpty() && viewUsage == recording)
                 onConfiguredTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
 
             try {
@@ -379,7 +391,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
 
         @Override
         public void onActive(@NonNull CameraCaptureSession cameraCaptureSession) {
-            if (textureViewUsage == recording) {
+            if (viewUsage == recording) {
                 startRecordingTimestamp = System.currentTimeMillis();
                 startRecordingTimestamp += timezone.getOffset(startRecordingTimestamp) + gpsOffset;
                 onActiveTime = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
@@ -394,18 +406,12 @@ public class CameraCaptureActivity extends AppCompatActivity  {
             cameraDevice = null;
         }
 
-        if (textureViewUsage == recording) {
+        if (viewUsage == recording) {
             mediaRecorder.stop();
             mediaRecorder.reset();
         }
 
-        textureViewUsage = idle;
-        textureView.setVisibility(View.INVISIBLE);
-        dividerView.setVisibility(View.INVISIBLE);
-        playImageButton.setVisibility(View.VISIBLE);
-        forwardImageButton.setVisibility(View.VISIBLE);
-        reverseImageButton.setVisibility(View.VISIBLE);
-        recordImageButton.setImageResource(R.drawable.icon_video_record);
+        setViewUsage(idle);
     }
 
     // ====================================================================
@@ -413,7 +419,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
 
     // Start playing
     protected void startPlaying() {
-        if (textureViewUsage != idle)
+        if (viewUsage != idle)
             return;
 
         if (!textureView.isAvailable())
@@ -435,28 +441,21 @@ public class CameraCaptureActivity extends AppCompatActivity  {
             }
         });
 
-        textureViewUsage = playing;
-        textureView.setVisibility(View.VISIBLE);
-        dividerView.setVisibility(View.VISIBLE);
-        playImageButton.setImageResource(R.drawable.icon_video_pause);
+        setViewUsage(playing);
     }
 
 
     protected void stopPlaying() {
-        if (textureViewUsage == playing) {
+        if (viewUsage == playing) {
             mediaPlayer.stop();
             mediaPlayer.reset();
-            textureViewUsage = idle;
         }
 
-        textureView.setVisibility(View.INVISIBLE);
-        dividerView.setVisibility(View.INVISIBLE);
-        timestampTextView.setVisibility(View.INVISIBLE);
-        playImageButton.setImageResource(R.drawable.icon_video_play);
+        setViewUsage(idle);
     }
 
     protected void pauseVideo() {
-        if (textureViewUsage != playing)
+        if (viewUsage != playing)
             return;
 
         if (mediaPlayer.isPlaying()) {
@@ -468,7 +467,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     }
 
     protected void restartVideo() {
-        if (textureViewUsage != playing)
+        if (viewUsage != playing)
             return;
 
         if (!mediaPlayer.isPlaying()) {
@@ -517,6 +516,59 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         else
             return sizesSupported[0];
     }
+
+    private void setViewUsage(int _viewUsage) {
+        if (_viewUsage == viewUsage)
+            return;
+
+        viewUsage = _viewUsage;
+
+        switch (viewUsage) {
+            case idle:
+                textureView.setVisibility(View.INVISIBLE);
+                dividerView.setVisibility(View.INVISIBLE);
+                listView.setVisibility(View.INVISIBLE);
+                playImageButton.setVisibility(View.VISIBLE);
+                forwardImageButton.setVisibility(View.INVISIBLE);
+                reverseImageButton.setVisibility(View.INVISIBLE);
+                recordImageButton.setVisibility(View.VISIBLE);
+
+                recordImageButton.setImageResource(R.drawable.icon_video_record);
+                playImageButton.setImageResource(R.drawable.icon_video_play);
+                break;
+
+            case recording:
+                textureView.setVisibility(View.VISIBLE);
+                dividerView.setVisibility(View.VISIBLE);
+                listView.setVisibility(View.INVISIBLE);
+                playImageButton.setVisibility(View.INVISIBLE);
+                forwardImageButton.setVisibility(View.INVISIBLE);
+                reverseImageButton.setVisibility(View.INVISIBLE);
+                recordImageButton.setVisibility(View.VISIBLE);
+
+                recordImageButton.setImageResource(R.drawable.icon_video_stop);
+                break;
+
+            case playing:
+                textureView.setVisibility(View.VISIBLE);
+                dividerView.setVisibility(View.VISIBLE);
+                listView.setVisibility(View.INVISIBLE);
+                playImageButton.setVisibility(View.VISIBLE);
+                forwardImageButton.setVisibility(View.VISIBLE);
+                reverseImageButton.setVisibility(View.VISIBLE);
+                recordImageButton.setVisibility(View.VISIBLE);
+
+                playImageButton.setImageResource(R.drawable.icon_video_pause);
+                break;
+
+            case results:
+                textureView.setVisibility(View.INVISIBLE);
+                dividerView.setVisibility(View.INVISIBLE);
+                listView.setVisibility(View.VISIBLE);
+                break;
+        }
+    }
+
 
     // ====================================================================
     // GPS interaction

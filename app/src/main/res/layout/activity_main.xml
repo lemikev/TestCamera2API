@@ -17,7 +17,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/timestampTextView"
+        app:layout_constraintTop_toBottomOf="@+id/resultButton"
         tools:visibility="invisible" />
 
     <ImageButton
@@ -37,12 +37,12 @@
         android:id="@+id/playImageButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="16dp"
+        android:layout_marginStart="16dp"
         android:layout_marginBottom="8dp"
         android:background="?android:attr/selectableItemBackground"
         android:src="@drawable/icon_video_play"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/forwardImageButton" />
+        app:layout_constraintStart_toEndOf="@+id/recordImageButton" />
 
     <View
         android:id="@+id/dividerView"
@@ -63,7 +63,7 @@
         android:layout_marginBottom="8dp"
         android:background="?android:attr/selectableItemBackground"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/playImageButton"
+        app:layout_constraintEnd_toStartOf="@+id/forwardImageButton"
         app:srcCompat="@drawable/icon_video_rewind" />
 
     <ImageButton
@@ -81,12 +81,34 @@
         android:id="@+id/timestampTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginStart="24dp"
         android:text="00:00:00 000"
+        android:textSize="14sp"
         android:textStyle="bold"
         android:visibility="invisible"
-        app:layout_constraintEnd_toEndOf="@+id/texture"
+        app:layout_constraintBottom_toTopOf="@+id/texture"
         app:layout_constraintStart_toStartOf="@+id/texture"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/resultButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp"
+        android:background="@color/colorControls"
+        android:text="Résultats"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@layout/listview_border"
+        app:layout_constraintBottom_toBottomOf="@+id/texture"
+        app:layout_constraintEnd_toEndOf="@+id/texture"
+        app:layout_constraintStart_toStartOf="@+id/texture"
+        app:layout_constraintTop_toTopOf="@+id/texture" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
