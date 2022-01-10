@@ -4,5 +4,8 @@
 
     <item
         android:id="@+id/debugMenuItem"
-        android:title="Debug" />
+        android:title="Preview vidéos" />
+    <item
+        android:enabled="false"
+        android:title="Delete old vidéos" />
 </menu>
