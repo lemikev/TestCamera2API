@@ -3,8 +3,8 @@
     xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/debugMenuItem"
-        android:title="Preview vidéos" />
+        android:id="@+id/previousVideoMenuItem"
+        android:title="Preview videos" />
     <item
         android:enabled="false"
         android:title="Delete old vidéos" />

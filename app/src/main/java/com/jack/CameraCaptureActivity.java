@@ -38,10 +38,8 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.TimeZone;
 
 public class CameraCaptureActivity extends AppCompatActivity  {
@@ -52,6 +50,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     private String tmpVideoFile;
     private String currentVideoFilePath = null;
     private static final String eventID = "-LbTsyCDs61MkK2_aB6c";
+    private ArrayList<String> videoList = new ArrayList<String>();
 
     private ImageButton recordImageButton;
     private ImageButton reverseImageButton;
@@ -62,7 +61,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     private static final int idle = 0;
     private static final int recording = 1;
     private static final int playing = 2;
-    private static final int results = 3;
+    private static final int previousVideos = 3;
     private int viewUsage = -1;
     private int previousViewUsage;
 
@@ -70,7 +69,8 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     private MediaPlayer mediaPlayer;
     private View dividerView;
     private TextView timestampTextView;
-    private ListView fileListView;
+    private ListView videoListView;
+    private VideoListAdapter videoListAdapter;
 
     private String cameraId;
     private CameraDevice cameraDevice = null;
@@ -99,7 +99,14 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         mediaRecorder = new MediaRecorder();
         mediaPlayer = new MediaPlayer();
         timestampTextView = (TextView) findViewById(R.id.timestampTextView);
-        fileListView = (ListView) findViewById(R.id.fileListView);
+
+        // Video list
+
+        videoListView = (ListView) findViewById(R.id.videoListView);
+        videoListAdapter = new VideoListAdapter(this, videoList);
+        videoListView.setAdapter(videoListAdapter);
+        // TODO Handle selection
+
 
         // Recording button
         recordImageButton = (ImageButton) findViewById(R.id.recordImageButton);
@@ -202,12 +209,13 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         resultButton = (Button) findViewById(R.id.resultButton);
         resultButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (viewUsage != results) {
-                    previousViewUsage = viewUsage;
-                    setViewUsage(results);
-
+                /* TODO
+                if (viewUsage != previousVideos) {
+                    // previousViewUsage = results;
+                    // setViewUsage(previousVideos);
                 } else
                     setViewUsage(previousViewUsage);
+                */
             }
         });
 
@@ -228,10 +236,15 @@ public class CameraCaptureActivity extends AppCompatActivity  {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        /*switch (item.getItemId()) {
-            case R.id.debugMenuItem:
+        switch (item.getItemId()) {
+            case R.id.previousVideoMenuItem:
+                setViewUsage(previousVideos);
+                // TODO Get real directory content
+                videoList.add("09:18:36");
+                videoList.add("09:24:09");
+                videoListAdapter.notifyDataSetChanged();
                 return true;
-        }*/
+        }
         return false;
     }
 
@@ -406,6 +419,8 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         setViewUsage(idle);
     }
 
+
+
     // ====================================================================
     // Playing video
 
@@ -543,7 +558,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
             case idle:
                 textureView.setVisibility(View.INVISIBLE);
                 dividerView.setVisibility(View.INVISIBLE);
-                fileListView.setVisibility(View.INVISIBLE);
+                videoListView.setVisibility(View.INVISIBLE);
                 playImageButton.setVisibility((currentVideoFilePath == null) ? View.INVISIBLE : View.VISIBLE);
                 forwardImageButton.setVisibility(View.INVISIBLE);
                 reverseImageButton.setVisibility(View.INVISIBLE);
@@ -556,7 +571,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
             case recording:
                 textureView.setVisibility(View.VISIBLE);
                 dividerView.setVisibility(View.VISIBLE);
-                fileListView.setVisibility(View.INVISIBLE);
+                videoListView.setVisibility(View.INVISIBLE);
                 playImageButton.setVisibility(View.INVISIBLE);
                 forwardImageButton.setVisibility(View.INVISIBLE);
                 reverseImageButton.setVisibility(View.INVISIBLE);
@@ -568,7 +583,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
             case playing:
                 textureView.setVisibility(View.VISIBLE);
                 dividerView.setVisibility(View.VISIBLE);
-                fileListView.setVisibility(View.INVISIBLE);
+                videoListView.setVisibility(View.INVISIBLE);
                 playImageButton.setVisibility(View.VISIBLE);
                 forwardImageButton.setVisibility(View.VISIBLE);
                 reverseImageButton.setVisibility(View.VISIBLE);
@@ -577,10 +592,10 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                 playImageButton.setImageResource(R.drawable.icon_video_pause);
                 break;
 
-            case results:
+            case previousVideos:
                 textureView.setVisibility(View.INVISIBLE);
                 dividerView.setVisibility(View.INVISIBLE);
-                fileListView.setVisibility(View.VISIBLE);
+                videoListView.setVisibility(View.VISIBLE);
                 break;
         }
     }
