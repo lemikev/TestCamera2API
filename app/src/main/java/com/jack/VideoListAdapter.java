@@ -21,20 +21,27 @@ public class VideoListAdapter extends ArrayAdapter {
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
+        String fileName = (String) getItem(position);
+
         // add the layout
         LayoutInflater inflater = LayoutInflater.from(getContext());
         View videoListRow = inflater.inflate(R.layout.video_list_row, parent, false);
 
-        // Retrieve content
-        final String videoName = (String) getItem(position);
-
         // Time
         TextView timeTextView = (TextView) videoListRow.findViewById(R.id.timeTextView);
-        timeTextView.setText(videoName);
+        String timestamp_s = fileName.substring(0, 13);
+        long timestamp = Long.parseLong(timestamp_s);
+        String time = String.format("%02d:%02d:%02d", (timestamp / 3600000) % 24,  (timestamp / 60000) % 60, (timestamp / 1000) % 60);
+        timeTextView.setText(time);
 
-        // Event
+        // Heat
         TextView eventTextView = (TextView) videoListRow.findViewById(R.id.eventTextView);
-        eventTextView.setText("Test");
+
+        if (fileName.length() == 37) {
+            String heatID = fileName.substring(13, 33);
+            eventTextView.setText(heatID);
+        } else
+            eventTextView.setVisibility(View.GONE);
 
         return videoListRow;
     }

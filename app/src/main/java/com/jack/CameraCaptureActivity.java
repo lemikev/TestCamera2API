@@ -29,6 +29,7 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ListView;
@@ -40,22 +41,28 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.ListIterator;
 import java.util.TimeZone;
 
 public class CameraCaptureActivity extends AppCompatActivity  {
     private CameraCaptureActivity cameraCaptureActivity = this;
     private static final int REQUEST_CAMERA_PERMISSION = 200;
     private static final int REQUEST_GPS_PERMISSION = 201;
+    private static final int SKIP_PERIOD = 3000;
 
     private String tmpVideoFile;
     private String currentVideoFilePath = null;
+    private String eventDirectory;
     private static final String eventID = "-LbTsyCDs61MkK2_aB6c";
     private ArrayList<String> videoList = new ArrayList<String>();
+    private boolean syncVideoList = true;
 
     private ImageButton recordImageButton;
     private ImageButton reverseImageButton;
     private ImageButton playImageButton;
     private ImageButton forwardImageButton;
+    private ImageButton listVideoImageButton;
     private Button resultButton;
 
     private static final int idle = 0;
@@ -67,6 +74,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
 
     private TextureView textureView;
     private MediaPlayer mediaPlayer;
+    private boolean mediaPlayerInitialized = false;
     private View dividerView;
     private TextView timestampTextView;
     private ListView videoListView;
@@ -74,7 +82,6 @@ public class CameraCaptureActivity extends AppCompatActivity  {
 
     private String cameraId;
     private CameraDevice cameraDevice = null;
-    private CameraCaptureSession cameraCaptureSessions;
     private CaptureRequest.Builder captureRequestBuilder;
     private Size imageDimension;
     private MediaRecorder mediaRecorder;
@@ -92,21 +99,44 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         setContentView(R.layout.activity_main);
         mainActivity = this;
 
-        // UI objects
+        // Media recorder
 
-        textureView = (TextureView) findViewById(R.id.texture);
-        dividerView = (View) findViewById(R.id.dividerView);
         mediaRecorder = new MediaRecorder();
+
+        // Media player
+
         mediaPlayer = new MediaPlayer();
         timestampTextView = (TextView) findViewById(R.id.timestampTextView);
 
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            public void onCompletion(MediaPlayer mp) {
+                playImageButton.setImageResource(R.drawable.icon_video_play);
+            }
+        });
+
+        // Video view
+
+        textureView = (TextureView) findViewById(R.id.texture);
+        dividerView = (View) findViewById(R.id.dividerView);
+
         // Video list
 
+        eventDirectory = getFilesDir().getAbsolutePath() + File.separator + eventID;
         videoListView = (ListView) findViewById(R.id.videoListView);
         videoListAdapter = new VideoListAdapter(this, videoList);
         videoListView.setAdapter(videoListAdapter);
-        // TODO Handle selection
 
+        videoListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView <?> parent, View view, int position, long id) {
+                currentVideoFilePath = eventDirectory + File.separator + videoList.get(position);
+                if (mediaPlayerInitialized)
+                    stopPlaying();
+                setViewUsage(playing);
+                startPlaying();
+                // TODO set play button state correctly
+            }
+        });
 
         // Recording button
         recordImageButton = (ImageButton) findViewById(R.id.recordImageButton);
@@ -115,10 +145,10 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                 if (viewUsage == playing)
                     stopPlaying();
 
-                if (viewUsage == idle)
-                    startRecording();
-                else
+                if (viewUsage == recording)
                     stopRecording();
+                else
+                    startRecording();
             }
         });
 
@@ -126,13 +156,16 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         playImageButton = (ImageButton) findViewById(R.id.playImageButton);
         playImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (viewUsage == idle)
-                    startPlaying();
-                else if (viewUsage == playing) {
-                    if (mediaPlayer.isPlaying())
-                        pauseVideo();
-                    else
-                        restartVideo();
+                if (viewUsage != recording) {
+                    if (mediaPlayerInitialized) {
+                        if (mediaPlayer.isPlaying())
+                            pauseVideo();
+                        else
+                            restartVideo();
+                    }
+                    else {
+                        startPlaying();
+                    }
                 }
             }
         });
@@ -144,10 +177,9 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                 if (viewUsage != playing)
                     return;
 
-                if (mediaPlayer.isPlaying())
-                    pauseVideo();
+                pauseVideo();
 
-                int seekTo = mediaPlayer.getCurrentPosition() + 4000;
+                int seekTo = mediaPlayer.getCurrentPosition() + SKIP_PERIOD;
                 if (seekTo > mediaPlayer.getDuration())
                     seekTo = mediaPlayer.getDuration();
 
@@ -163,10 +195,9 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                 if (viewUsage != playing)
                     return;
 
-                if (mediaPlayer.isPlaying())
-                    pauseVideo();
+                pauseVideo();
 
-                int seekTo = mediaPlayer.getCurrentPosition() - 4000;
+                int seekTo = mediaPlayer.getCurrentPosition() - SKIP_PERIOD;
                 if (seekTo < 0)
                     seekTo = 0;
 
@@ -174,6 +205,27 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                 displaySeekTime(seekTo);
             }
         });
+
+        // Video list button
+        listVideoImageButton = (ImageButton) findViewById(R.id.listVideoImageButton);
+        listVideoImageButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                setViewUsage(previousVideos);
+                if (syncVideoList) {
+                    File f = new File(eventDirectory);
+                    String[] files = f.list();
+
+                    videoList.clear();
+                    for (int i = 0; i < files.length; i++)
+                        addVideoInOrder(files[i]);
+
+                    syncVideoList = false;
+                }
+                videoListAdapter.notifyDataSetChanged();
+            }
+        });
+
+        // Swipe forward or reserve
 
         textureView.setOnTouchListener(new View.OnTouchListener() {
             @Override
@@ -234,15 +286,28 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         return true;
     }
 
+    private void addVideoInOrder(String fileName) {
+        // Filter invalid file name
+        if (fileName.length() < 17 || fileName.substring(fileName.length()-4).compareTo(".mp4") != 0)
+            return;
+
+        ListIterator<String> videoIterator = videoList.listIterator();
+        while (videoIterator.hasNext()) {
+            String videoListEntry = videoIterator.next();
+            if (fileName.compareTo(videoListEntry) > 0) {
+                videoIterator.previous();
+                videoIterator.add(fileName);
+                return;
+            }
+        }
+        videoIterator.add(fileName);
+    }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.previousVideoMenuItem:
-                setViewUsage(previousVideos);
-                // TODO Get real directory content
-                videoList.add("09:18:36");
-                videoList.add("09:24:09");
-                videoListAdapter.notifyDataSetChanged();
+                // TO DO remove
                 return true;
         }
         return false;
@@ -293,9 +358,6 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     // Recording
 
     private void startRecording() {
-        if (viewUsage != idle)
-            return;
-
         try {
             createVideoFile();
         }
@@ -426,14 +488,11 @@ public class CameraCaptureActivity extends AppCompatActivity  {
 
     // Start playing
     protected void startPlaying() {
-        if (viewUsage != idle)
-            return;
-
         if (!textureView.isAvailable())
             return;
 
-        //if (currentVideoFilePath == null)
-        //    return;
+        if (currentVideoFilePath == null)
+            return;
 
         mediaPlayer.setSurface(new Surface(textureView.getSurfaceTexture()));
         try {
@@ -449,6 +508,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
             @Override
             public void onPrepared(MediaPlayer mp) {
                 mediaPlayer.start();
+                mediaPlayerInitialized = true;
             }
         });
 
@@ -457,18 +517,13 @@ public class CameraCaptureActivity extends AppCompatActivity  {
 
 
     protected void stopPlaying() {
-        if (viewUsage == playing) {
-            mediaPlayer.stop();
-            mediaPlayer.reset();
-        }
-
+        mediaPlayer.stop();
+        mediaPlayer.reset();
+        mediaPlayerInitialized = false;
         setViewUsage(idle);
     }
 
     protected void pauseVideo() {
-        if (viewUsage != playing)
-            return;
-
         timestampTextView.setVisibility(View.VISIBLE);
 
         if (mediaPlayer.isPlaying()) {
@@ -479,13 +534,13 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     }
 
     protected void restartVideo() {
-        if (viewUsage != playing)
-            return;
-
         if (!mediaPlayer.isPlaying()) {
+            if (mediaPlayer.getCurrentPosition() == mediaPlayer.getDuration())
+                mediaPlayer.seekTo(0);
             mediaPlayer.start();
             timestampTextView.setVisibility(View.INVISIBLE);
             playImageButton.setImageResource(R.drawable.icon_video_pause);
+            setViewUsage(playing);
         }
     }
 
@@ -508,23 +563,23 @@ public class CameraCaptureActivity extends AppCompatActivity  {
 
     private void renameVideoFile() {
         String fileName = String.format("%013d", startRecordingTimestamp) + ".mp4";
-        String eventDirectoryPath = getFilesDir().getAbsolutePath() + File.separator + eventID;
 
         // Create directory
 
-        File directory = new File(eventDirectoryPath);
+        File directory = new File(eventDirectory);
         if (!directory.exists())
             directory.mkdir();
 
         // Rename and move the tmp file
 
         File from      = new File(tmpVideoFile);
-        File to        = new File(eventDirectoryPath, fileName);
+        File to        = new File(eventDirectory, fileName);
         if (!from.renameTo(to)) {
             Toast.makeText(CameraCaptureActivity.this, "ERROR, unable to store the video.", Toast.LENGTH_LONG).show();
             return;
         }
         currentVideoFilePath = to.getPath();
+        syncVideoList = true;
     }
 
     // Selection of highest video quality lower of equal to 1K
@@ -552,11 +607,18 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         if (_viewUsage == viewUsage)
             return;
 
+        if (viewUsage == playing) {
+            if (mediaPlayer.isPlaying())
+                mediaPlayer.pause();
+            playImageButton.setImageResource(R.drawable.icon_video_play);
+            timestampTextView.setVisibility(View.INVISIBLE);
+        }
+
         viewUsage = _viewUsage;
 
         switch (viewUsage) {
             case idle:
-                textureView.setVisibility(View.INVISIBLE);
+                // textureView.setVisibility(View.VISIBLE);
                 dividerView.setVisibility(View.INVISIBLE);
                 videoListView.setVisibility(View.INVISIBLE);
                 playImageButton.setVisibility((currentVideoFilePath == null) ? View.INVISIBLE : View.VISIBLE);
@@ -569,7 +631,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                 break;
 
             case recording:
-                textureView.setVisibility(View.VISIBLE);
+                // textureView.setVisibility(View.VISIBLE);
                 dividerView.setVisibility(View.VISIBLE);
                 videoListView.setVisibility(View.INVISIBLE);
                 playImageButton.setVisibility(View.INVISIBLE);
@@ -581,7 +643,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                 break;
 
             case playing:
-                textureView.setVisibility(View.VISIBLE);
+                // textureView.setVisibility(View.VISIBLE);
                 dividerView.setVisibility(View.VISIBLE);
                 videoListView.setVisibility(View.INVISIBLE);
                 playImageButton.setVisibility(View.VISIBLE);
@@ -589,11 +651,14 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                 reverseImageButton.setVisibility(View.VISIBLE);
                 recordImageButton.setVisibility(View.VISIBLE);
 
-                playImageButton.setImageResource(R.drawable.icon_video_pause);
+                if (mediaPlayer.isPlaying())
+                    playImageButton.setImageResource(R.drawable.icon_video_pause);
+                else
+                    playImageButton.setImageResource(R.drawable.icon_video_play);
                 break;
 
             case previousVideos:
-                textureView.setVisibility(View.INVISIBLE);
+                // textureView.setVisibility(View.VISIBLE);
                 dividerView.setVisibility(View.INVISIBLE);
                 videoListView.setVisibility(View.VISIBLE);
                 break;
