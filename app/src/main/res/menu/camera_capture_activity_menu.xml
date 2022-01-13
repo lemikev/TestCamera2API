@@ -1,11 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:android="http://schemas.android.com/apk/res/android">
-
     <item
-        android:id="@+id/previousVideoMenuItem"
-        android:title="Preview videos" />
+        android:id="@+id/idUpdatePositionMenuItem"
+        android:title="@string/menu_resync_results" />
     <item
+        android:id="@+id/heatCompletedMenuItem"
+        android:checkable="true"
+        android:icon="@drawable/icon_lock"
+        android:title="@string/menu_publish_results"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/previousHeatMenuItem"
+        android:icon="@drawable/icon_previous"
+        android:title="@string/menu_previous_heat"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/nextHeatMenuItem"
+        android:icon="@drawable/icon_next"
+        android:title="@string/menu_next_heat"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/deleteOldVideo"
         android:enabled="false"
-        android:title="Delete old vidéos" />
+        android:title="Delete old videos" />
 </menu>

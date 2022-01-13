@@ -37,10 +37,10 @@
         android:id="@+id/playImageButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="24dp"
         android:layout_marginBottom="8dp"
-        android:src="@drawable/icon_video_play"
         android:background="?android:attr/selectableItemBackground"
+        android:src="@drawable/icon_video_play"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toEndOf="@+id/recordImageButton" />
 
@@ -59,10 +59,10 @@
         android:id="@+id/reverseImageButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
+        android:layout_marginStart="24dp"
         android:layout_marginBottom="8dp"
-        android:src="@drawable/icon_video_rewind"
         android:background="?android:attr/selectableItemBackground"
+        android:src="@drawable/icon_video_rewind"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toEndOf="@+id/playImageButton" />
 
@@ -70,10 +70,10 @@
         android:id="@+id/forwardImageButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="24dp"
         android:layout_marginBottom="8dp"
-        android:src="@drawable/icon_video_forward"
         android:background="?android:attr/selectableItemBackground"
+        android:src="@drawable/icon_video_forward"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toEndOf="@+id/reverseImageButton" />
 
@@ -81,14 +81,12 @@
         android:id="@+id/timestampTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:text="00:00:00 000"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="8dp"
         android:textSize="18sp"
-        android:textStyle="bold"
         android:visibility="invisible"
         app:layout_constraintBottom_toTopOf="@+id/texture"
-        app:layout_constraintStart_toStartOf="@+id/texture"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintStart_toStartOf="@+id/texture" />
 
     <Button
         android:id="@+id/resultButton"
@@ -117,9 +115,21 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="16dp"
         android:background="?android:attr/selectableItemBackground"
-        android:src="@drawable/icon_list"
+        android:src="@drawable/icon_video_list"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/texture" />
+
+    <TextView
+        android:id="@+id/heatLabelTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="U17W1x Qualification"
+        app:layout_constraintBottom_toTopOf="@+id/timestampTextView"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

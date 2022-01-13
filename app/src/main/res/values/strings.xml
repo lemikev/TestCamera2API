@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Project Camera 2 API</string>
+    <string name="menu_resync_results">Re-synchronize results</string>
+    <string name="menu_publish_results">Publish results</string>
+    <string name="menu_previous_heat">Previous heat</string>
+    <string name="menu_next_heat">Next heat</string>
 </resources>
