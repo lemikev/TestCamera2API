@@ -71,7 +71,8 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     private static final int results = 4;
 
     private int viewUsage = -1;
-    private int previousViewUsage;
+    private int resultPreviousView;
+    private int listVideoPreviousView;
 
     private TextureView textureView;
     private MediaPlayer mediaPlayer;
@@ -224,10 +225,10 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         listVideoImageButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (viewUsage == videoSelection) {
-                    setViewUsage(previousViewUsage);
+                    setViewUsage(listVideoPreviousView);
                 }
                 else {
-                    previousViewUsage = viewUsage;
+                    listVideoPreviousView = viewUsage;
                     setViewUsage(videoSelection);
                     if (syncVideoList) {
                         File f = new File(eventDirectory);
@@ -281,9 +282,9 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         resultButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (viewUsage == results)
-                    setViewUsage(previousViewUsage);
+                    setViewUsage(resultPreviousView);
                 else {
-                    previousViewUsage = viewUsage;
+                    resultPreviousView = viewUsage;
                     setViewUsage(results);
                 }
             }
