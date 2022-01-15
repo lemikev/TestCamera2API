@@ -6,7 +6,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.ImageButton;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -35,13 +34,23 @@ public class VideoListAdapter extends ArrayAdapter {
         timeTextView.setText(time);
 
         // Heat
-        TextView eventTextView = (TextView) videoListRow.findViewById(R.id.eventTextView);
+        TextView heatTextView = (TextView) videoListRow.findViewById(R.id.heatTextView);
 
-        if (fileName.length() == 37) {
-            String heatID = fileName.substring(13, 33);
-            eventTextView.setText(heatID);
+        if (fileName.length() > 37) {
+            String heatID = fileName.substring(14, 34);
+            // TODO Get heat label
+            heatTextView.setText(heatID);
         } else
-            eventTextView.setVisibility(View.GONE);
+            heatTextView.setVisibility(View.INVISIBLE);
+
+        // Bow marker
+        TextView bowMarkerTextView = (TextView) videoListRow.findViewById(R.id.bowMarkerTextView);
+
+        if (fileName.length() > 38) {
+            String heatID = fileName.substring(35, fileName.length()-4);
+            bowMarkerTextView.setText(heatID);
+        } else
+            bowMarkerTextView.setVisibility(View.INVISIBLE);
 
         return videoListRow;
     }
