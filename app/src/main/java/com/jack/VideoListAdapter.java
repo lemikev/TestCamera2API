@@ -28,8 +28,7 @@ public class VideoListAdapter extends ArrayAdapter {
 
         // Time
         TextView timeTextView = (TextView) videoListRow.findViewById(R.id.timeTextView);
-        String timestamp_s = fileName.substring(0, 13);
-        long timestamp = Long.parseLong(timestamp_s);
+        long timestamp = Long.parseLong(fileName.substring(0, 13));
         String time = String.format("%02d:%02d:%02d", (timestamp / 3600000) % 24,  (timestamp / 60000) % 60, (timestamp / 1000) % 60);
         timeTextView.setText(time);
 

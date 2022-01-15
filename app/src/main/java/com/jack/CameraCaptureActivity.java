@@ -35,6 +35,7 @@ import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+// TODO Replace pour Heat specific Toast
 
 import java.io.File;
 import java.io.IOException;
@@ -52,7 +53,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     private String tmpVideoFile;
     private String currentVideoFilePath = null;
     private String eventDirectory;
-    private static final String heatID = "-LbTsyCDs61MkK2_aB6c";
+    private static final String eventID = "-LbTsyCDs61MkK2_aB6c";
     private ArrayList<String> videoList = new ArrayList<String>();
     private boolean syncVideoList = true;
 
@@ -125,7 +126,7 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         dividerView = (View) findViewById(R.id.dividerView);
 
         // Video list
-        eventDirectory = getFilesDir().getAbsolutePath() + File.separator + heatID;
+        eventDirectory = getFilesDir().getAbsolutePath() + File.separator + eventID;
         videoListView = (ListView) findViewById(R.id.videoListView);
         videoListAdapter = new VideoListAdapter(this, videoList);
         videoListView.setAdapter(videoListAdapter);
@@ -234,11 +235,13 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                     setViewUsage(videoSelection);
                     if (syncVideoList) {
                         File f = new File(eventDirectory);
-                        String[] files = f.list();
+                        if (f.exists()) {
+                            String[] files = f.list();
 
-                        videoList.clear();
-                        for (int i = 0; i < files.length; i++)
-                            addVideoInOrder(files[i]);
+                            videoList.clear();
+                            for (int i = 0; i < files.length; i++)
+                                addVideoInOrder(files[i]);
+                        }
 
                         syncVideoList = false;
                     }
@@ -248,7 +251,6 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         });
 
         // Swipe forward or reserve
-
         textureView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -328,7 +330,13 @@ public class CameraCaptureActivity extends AppCompatActivity  {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.deleteOldVideo:
-                // TO DO remove
+                int nbrDeletedFiles = deleteOldFiles();
+                if (nbrDeletedFiles == 0)
+                    Toast.makeText(CameraCaptureActivity.this, "No video files older than 24 hours present.", Toast.LENGTH_LONG).show();
+                else {
+                    Toast.makeText(CameraCaptureActivity.this, String.format("%d file(s) deleted.", nbrDeletedFiles), Toast.LENGTH_LONG).show();
+                    syncVideoList = true;
+                }
                 return true;
         }
         return false;
@@ -493,8 +501,6 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         }
     }
 
-
-
     // ====================================================================
     // Playing video
 
@@ -595,6 +601,26 @@ public class CameraCaptureActivity extends AppCompatActivity  {
         syncVideoList = true;
     }
 
+    // Delete files older than 24 hours
+    private int deleteOldFiles() {
+        File directory = new File(eventDirectory);
+        int nbrFileDeleted = 0;
+        long currentTime = System.currentTimeMillis();
+        currentTime += timezone.getOffset(startRecordingTimestamp) + gpsOffset;
+
+        if (directory.exists()) {
+            File fileList[] = directory.listFiles();
+            for (int i=0; i<fileList.length; i++) {
+                long timestamp = Long.parseLong(fileList[i].getName().substring(0, 13));
+                if (currentTime - timestamp > 86400000L) {
+                    fileList[i].delete();
+                    nbrFileDeleted++;
+                }
+            }
+        }
+        return nbrFileDeleted;
+    }
+
     // Selection of highest video quality lower of equal to 1K
     private Size chooseOptimalSize(Size[] sizesSupported) {
         Size sizeSelected = null;
@@ -656,12 +682,16 @@ public class CameraCaptureActivity extends AppCompatActivity  {
                 dividerView.setVisibility(View.INVISIBLE);
                 videoListView.setVisibility(View.VISIBLE);
                 resultsListView.setVisibility(View.INVISIBLE);
+                forwardImageButton.setVisibility(View.INVISIBLE);
+                reverseImageButton.setVisibility(View.INVISIBLE);
                 break;
 
             case results:
                 dividerView.setVisibility(View.INVISIBLE);
                 videoListView.setVisibility(View.INVISIBLE);
                 resultsListView.setVisibility(View.VISIBLE);
+                forwardImageButton.setVisibility(View.INVISIBLE);
+                reverseImageButton.setVisibility(View.INVISIBLE);
                 break;
         }
     }
